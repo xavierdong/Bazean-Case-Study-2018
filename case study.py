@@ -207,8 +207,8 @@ def main():
 
     #calculate EUR of each well using hyperbolic decline curve analysis
     api_list, eur_list, operator_list = determine_eur_per_well(proddata_grouped)
-    print(eur_list)
-    #map calculated eur data to csv
+    
+    #map calculated eur data to dictionary then to csv
     eur_dict = eur_by_well(api_list, eur_list, operator_list)
     q2_df = pd.DataFrame(data=eur_dict)
     q2_df.to_csv("q2_eur_per_well.csv", index = False)
