@@ -84,10 +84,10 @@ def determine_eur_per_well(proddata_grouped):
     -integrate the curve function to determine EUR (assumed 200 months of production to reach economic limit)
 
     :param proddata_grouped:
-    :return: list of api number, calculated eur, and operator name
+    :return: data_list: [api_list, eur_list, operator_list, wellname_list]: list of api number, calculated eur, corresponding operator name and well name
     """
     df_sorted_list = []
-    api_list = []; eur_list = []; operator_list = []
+    api_list = []; eur_list = []; operator_list = []; wellname_list = []
     #traverse through each well's production dataframe
     for df in proddata_grouped:
         # sort production data of each well by index (chronological)
@@ -114,7 +114,7 @@ def determine_eur_per_well(proddata_grouped):
         a_month, a_oil_prod = np.array(a[0,:]), np.array(a[1,:])
 
         if len(oil_prod) > 5: # must have at least 5 production data point to fit curve
-            fitted_param = scipy.optimize.curve_fit(hyperbolic_func, a_month, a_oil_prod, bounds=[0,[50000,2,100]])[0]
+            fitted_param = scipy.optimize.curve_fit(hyperbolic_func, a_month, a_oil_prod, bounds=[0, [50000, 2, 100]])[0]
             #fitted_param = scipy.optimize.curve_fit(expontial_func,a_month,a_oil_prod)[0]
             qi = fitted_param[0]; b= fitted_param[1]; Di = fitted_param[2]
             hyp = lambda t: qi/(1+b*Di*t)**(1/b)
@@ -125,18 +125,20 @@ def determine_eur_per_well(proddata_grouped):
         api_list.append(df["api"].iloc[0])
         eur_list.append(EUR)
         operator_list.append(df["operator_name"].iloc[0])
+        wellname_list.append(df["well_name"].iloc[0])
 
-    return api_list, eur_list, operator_list
+    return [api_list, eur_list, operator_list, wellname_list]
 
-def eur_by_well(api_list, eur_list, operator_list):
+def eur_by_well(data_list):
     """
-    :param api_list, eur_list, operator_list: list of unique api number, calculated EUR, and corresponding operator name
+    :param data_list: [api_list, eur_list, operator_list, wellname_list]: list of unique api number, calculated EUR, corresponding operator name, and well name
     :return: dictionary with api value as first entry, EUR of the well as second entry, and operator name as third entry
     """
     eur_dict = {}
-    eur_dict.update({"api": api_list})
-    eur_dict.update({"EUR oil": eur_list})
-    eur_dict.update({"operator_name": operator_list})
+    eur_dict.update({"api": data_list[0]})
+    eur_dict.update({"EUR oil": data_list[1]})
+    eur_dict.update({"operator_name": data_list[2]})
+    eur_dict.update({"well_name": data_list[3]})
     return eur_dict
 
 def estimate_total_reserve_by_op(operator_list, eur_data):
@@ -164,7 +166,7 @@ def main():
     all_prod_header = grab_headers(filename1)
 
     #define relevant columns from each csv through selecting key words in headers
-    key_words = [["api", "date", "operator", "cum", "field","spud"], ["api", "date", "index", "volume"]]
+    key_words = [["api", "date", "operator", "cum", "field","spud", "well"], ["api", "date", "index", "volume"]]
     well_rel_headers_index, well_rel_headers = find_relevant_headers(all_well_header, key_words[0])
     prod_rel_headers_index, prod_rel_headers = find_relevant_headers(all_prod_header, key_words[1])
 
@@ -172,7 +174,7 @@ def main():
     welldata = read_data(filename, well_rel_headers_index)
     proddata = read_data(filename1, prod_rel_headers_index)
 
-    """""""""""""""QUESTION 1"""""""""""""""
+    """""""""""""""QUESTION 1"""""""""""""""""
 
     #group and split well data by operator
     welldata_grouped = group_data(welldata, "operator_name")
@@ -192,31 +194,34 @@ def main():
     See "case_study_visualization.dxp > q1" for visualized total historical production by company in SpotFire
     """
 
-    """""""""""""""QUESTION 2"""""""""""""""
+    """""""""""""""QUESTION 2"""""""""""""""""
 
     #create a dictionary of api numbers and their operator names
     api_list = welldata["api"].tolist()
     op_of_api_list = welldata["operator_name"].tolist()
+    well_name_list = welldata["well_name"].tolist()
     api_to_op_dict = dict(zip(api_list, op_of_api_list))
+    api_to_wellname_dict = dict(zip(api_list, well_name_list))
 
     #map operator name to production data based on api number
     proddata['operator_name'] = proddata['api'].map(api_to_op_dict)
+    proddata['well_name'] = proddata['api'].map(api_to_wellname_dict)
 
     # group production data by api number
     proddata_grouped = group_data(proddata, "api")
 
     #calculate EUR of each well using hyperbolic decline curve analysis
-    api_list, eur_list, operator_list = determine_eur_per_well(proddata_grouped)
+    data_list = determine_eur_per_well(proddata_grouped)
     
     #map calculated eur data to dictionary then to csv
-    eur_dict = eur_by_well(api_list, eur_list, operator_list)
+    eur_dict = eur_by_well(data_list)
     q2_df = pd.DataFrame(data=eur_dict)
-    q2_df.to_csv("q2_eur_per_well.csv", index = False)
+    q2_df.to_csv("q2_eur_per_well.csv", index=False)
 
     print("Question 2: Determine EUR per well by company")
-    eur_list = [np.NaN if x==0 else x for x in eur_list]
-    for i in range(len(api_list)):
-        print("\tWell: ", api_list[i], ", EUR: ", eur_list[i], ", Operator: ", operator_list[i], )
+    eur_list = [np.NaN if x == 0 else x for x in data_list[1]]
+    for i in range(len(eur_list)):
+        print("\tWell:", data_list[3][i], "(", data_list[0][i], "), EUR:", eur_list[i], "bbl, Operator:", data_list[2][i])
 
     #determine total estimated reserve for each operator
     eur_by_op_dict = estimate_total_reserve_by_op(unique_operator_list, q2_df)
@@ -230,14 +235,14 @@ def main():
     See "case_study_visualization.dxp > q2" for visualized oil eur per well by company in SpotFire
     
 
-    """"""""""""QUESTION 3""""""""""""
+    """"""""""""QUESTION 3""""""""""""""
     
     See "case_study_visualization.dxp > q3" for visualized oil eur per well by company in SpotFire
     
     Methodology:
-    -plotted cum_12_oil and cum_12_gas vs spud_date to examine first year production/well over time drilled
-    -fitted a 6th degree polynomial to scatter data to capture productivity trend per company
-    -look for increasing trend (increasing productivity)
+    -first year annual hydrocarbon production (cum_12_oil, cum_12_gas) is plotted against spud_date to capture development of productivity vs. time
+    -6th degree polynomial fitted to scattered data in SpotFire to compare first year annual productivity of each well vs time the well was drilled
+    -Identified best increasing trend in first year productivity over time that well was drilled
     """
     print("Question 3: Company that will drill the most most productive well:")
     print("\tWPX ENERGY WILLISTON LLC is likely to drill the most productive oil and gas well based on analysis in SpotFire")

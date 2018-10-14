@@ -17,5 +17,6 @@ Question 2:
 
 Question 3:
 -first year annual hydrocarbon production (cum_12_oil, cum_12_gas) is plotted against spud_date to capture developement of productivity
--6th degree polynomial fitted to scattered data in SpotFire
--Identified best increasing trend in productivity: WPX ENERGY WILLISTON LLC
+-6th degree polynomial fitted to scattered data in SpotFire to compare first year annual productivity of each well vs time the well was drilled
+-Identified best increasing trend in first year productivity over time that well was drilled
+-WPX ENERGY WILLISTON LLC has the overall best improving trend in first year production as more wells are drilled: wells drilled going forward will should have best productivity
