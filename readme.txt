@@ -32,5 +32,5 @@ second method:
 -MARATHON OIL COMPANY seem to have the best producivity improvement over time using this method
 
 -Data visualized in SpotFire using scatter plot and curve fits: 
-case_study_visualization.dxp > q3 for 
-case_study_visualization.dxp > q3_1 for total estimated reserve per company
+case_study_visualization.dxp > q3 for method 1
+case_study_visualization.dxp > q3_1 for method 2
