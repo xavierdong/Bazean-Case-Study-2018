@@ -132,7 +132,7 @@ def determine_eur_per_well(proddata_grouped):
 def eur_by_well(data_list):
     """
     :param data_list: [api_list, eur_list, operator_list, wellname_list]: list of unique api number, calculated EUR, corresponding operator name, and well name
-    :return: dictionary with api value as first entry, EUR of the well as second entry, and operator name as third entry
+    :return: eur_dict: dictionary with api value as first entry, EUR of the well as second entry, and operator name as third entry
     """
     eur_dict = {}
     eur_dict.update({"api": data_list[0]})
@@ -145,7 +145,7 @@ def estimate_total_reserve_by_op(operator_list, eur_data):
     """
     :param operator_list: list of unique operator name in welldata
            eur_data: dataframe of eur data for each well
-    :return: dictionary with operator name as first entry, and operator's total estimated reserve as second entry
+    :return: eur_by_op_dict: dictionary with operator name as first entry, and operator's total estimated reserve as second entry
     """
     eur_grouped = group_data(eur_data, "operator_name")
     eur_by_op_dict = {}
@@ -158,6 +158,32 @@ def estimate_total_reserve_by_op(operator_list, eur_data):
     eur_by_op_dict.update({"Total Estimated Reserve": total_reserve_list})
     return eur_by_op_dict
 
+def determine_productivity_over_time(proddata):
+    """
+    :param proddata: dataframe of raw production data with operator_name and well_name added to the dataframe by api
+    :return: productivity_list: list of calculated average productivity of all wells for each date that the operator produced
+    """
+    productivity_list=[]
+    #group production dataframe by operator, then by date
+    proddata_grouped = group_data(proddata,"operator_name")
+    for df_prod in proddata_grouped:
+        data_prod_grouped = group_data(df_prod, "date")
+        oil_avg_list = []
+        gas_avg_list = []
+        operator_list = []
+        date_list = []
+        for df_date in data_prod_grouped:
+            #calculate average production of oil and gas for each date and append to corresponding data list
+            oil_avg = np.average(np.array(df_date["volume_oil_formation_bbls"]))
+            gas_avg = np.average(np.array(df_date["volume_gas_formation_mcf"]))
+            #x = pd.DataFrame("date": [df_date["date"].iloc[0]], "oil_productivity": [oil_avg], "gas_productivity": [gas_avg], "operator_name": [df_prod['operator_name'].iloc[0]])
+            oil_avg_list.append(oil_avg)
+            gas_avg_list.append(gas_avg)
+            operator_list.append(df_date["operator_name"].iloc[0])
+            date_list.append(df_date["date"].iloc[0])
+        x = {"date": date_list, 'oil_productivity': oil_avg_list, 'gas_productivity': gas_avg_list, 'operator_name': operator_list}
+        productivity_list.append(pd.DataFrame.from_dict(x))
+    return productivity_list
 
 def main():
     #grab all headers in csv data
@@ -186,7 +212,7 @@ def main():
     for i in range (len(unique_operator_list)):
         print("\t", unique_operator_list[i], ":", cum_oil_dict.get("total oil production")[i],"bbl")
 
-    #write question 1 result to csv
+    # construct dataframe to be imported into SpotFire
     q1_df = pd.DataFrame(data=cum_oil_dict)
     q1_df.to_csv("q1_total_oil_prod_by_op.csv", index=False)
 
@@ -215,6 +241,8 @@ def main():
     
     #map calculated eur data to dictionary then to csv
     eur_dict = eur_by_well(data_list)
+
+    # construct dataframe to be imported into SpotFire
     q2_df = pd.DataFrame(data=eur_dict)
     q2_df.to_csv("q2_eur_per_well.csv", index=False)
 
@@ -225,6 +253,8 @@ def main():
 
     #determine total estimated reserve for each operator
     eur_by_op_dict = estimate_total_reserve_by_op(unique_operator_list, q2_df)
+
+    # construct dataframe to be imported into SpotFire
     q2_1_df = pd.DataFrame(data=eur_by_op_dict)
     q2_1_df.to_csv("q2_total_reserve_by_op.csv", index=False)
 
@@ -245,6 +275,13 @@ def main():
     -Identified best increasing trend in first year productivity over time that well was drilled
     """
     print("Question 3: Company that will drill the most most productive well:")
-    print("\tWPX ENERGY WILLISTON LLC is likely to drill the most productive oil and gas well based on analysis in SpotFire")
+    print("Method 1:\n\tWPX ENERGY WILLISTON LLC is likely to drill the most productive oil and gas well based on this method")
+
+    productivity_list = determine_productivity_over_time(proddata)
+
+    #construct dataframe to be imported into SpotFire
+    q3_df = pd.concat(productivity_list)
+    q3_df.to_csv("q3_productivity_over_time_by_op.csv", index=False)
+    print("Method 2:\n\tMARATHON OIL COMPANY is likely to drill the most productive oil and gas well based on this method")
 
 main()
